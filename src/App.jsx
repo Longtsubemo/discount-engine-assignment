@@ -10,6 +10,7 @@ import CsvUploader from './components/CsvUploader.jsx'
 import DataTable from './components/DataTable.jsx'
 import ErrorBanner from './components/ErrorBanner.jsx'
 import NlRuleInput from './components/NlRuleInput.jsx'
+import { parseCartPdf } from './inputs/pdfCart.js'
 import { parseRulesCSV, parseCartCSV } from './engine/csvParser.js'
 import { processCart, applyCartOffer } from './engine/discountEngine.js'
 
@@ -134,12 +135,16 @@ export default function App() {
     setResults(null) // clear stale results
   }
 
-  function handleCartLoad(csvText, fileName) {
-    const { data, errors } = parseCartCSV(csvText)
-    setCartItems(data)
+  async function handleCartLoad(content, fileName) {
+    const isPdf = fileName.toLowerCase().endsWith('.pdf')
+    const { data, errors } = isPdf ? await parseCartPdf(content) : parseCartCSV(content)
     setCartErrors(errors)
+    // A PDF with no usable rows keeps the current cart rather than emptying it
+    if (isPdf && data.length === 0) return
+    setCartItems(data)
     setCartFileName(fileName)
-    setResults(null)
+    // PDF upload re-runs the engine with the active rules straight away
+    setResults(isPdf && rules.length > 0 ? processCart(data, rules) : null)
   }
 
   function handleCalculate() {
@@ -196,8 +201,9 @@ export default function App() {
           <div style={S.section}>
             <div style={S.sectionTitle}>Cart Items</div>
             <CsvUploader
-              label="cart.csv"
-              description="Upload your cart CSV"
+              label="cart.csv or cart.pdf"
+              description="Upload your cart as CSV or PDF"
+              accept=".csv,.pdf"
               onLoad={handleCartLoad}
               hasData={cartItems.length > 0}
               fileName={cartFileName}

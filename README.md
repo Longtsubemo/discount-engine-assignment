@@ -25,7 +25,7 @@ The live deployment URL must be in your README before submission.
 ## How to use
 
 1. Upload `sample-data/rules.csv` as the discount rules input
-2. Upload `sample-data/cart.csv` as the cart input
+2. Upload `sample-data/cart.csv` (or `cart.pdf`) as the cart input
 3. Click **Calculate Discounts**
 
 ## Adding an offer in plain English
@@ -43,6 +43,19 @@ How it's put together:
 - A rule naming a brand or platform not in the cart is allowed but flagged, since it won't change any prices yet.
 - The engine is unchanged: the new input just produces the same `DiscountRule` shape the CSV parser does.
 
+## Uploading a cart as a PDF
+
+The cart upload accepts `.pdf` as well as `.csv`. The PDF needs a table with the columns **Product, Brand, Platform, Base Price** (see `sample-data/cart.pdf`). Lines above the header, like an order number, are ignored. Loading a PDF replaces the cart and recalculates with the active rules straight away.
+
+How rows are read, and what happens when they're wrong:
+
+- Parsing runs in the browser with pdf.js, so no server is involved. Each cell is assigned to a column by its position under the header, so multi-word names like "Amazon India" stay together. This works whether the PDF stores each cell separately or each line as one monospaced string.
+- Prices may be written `Rs.1,299`, `₹ 849`, `INR 2499.00` or `599`.
+- A row with a missing column or an unreadable price is **skipped and listed** above the cart ("Row 2 (Mystery Lamp): price "TBD" isn't a valid amount — skipped"), and the good rows still load. Dropping a row silently would change what the customer pays without telling them; refusing the whole file over one bad row would block the other items. `sample-data/cart-malformed.pdf` shows this.
+- If no row is usable, or the file isn't a readable PDF, the current cart is kept and the reason is shown.
+- PDFs carry no item IDs, so items are numbered `ITEM-01`, `ITEM-02`… in table order.
+- **Assumption:** the PDF contains real text. A scanned (image-only) PDF would need OCR or an LLM vision call, which I left out.
+
 ## Project structure
 
 ```
@@ -52,6 +65,7 @@ src/
     csvParser.js        ← CSV → typed objects
   inputs/
     nlRule.js           ← plain English → validated DiscountRule
+    pdfCart.js          ← PDF table → CartItem[]
   components/
     CsvUploader.jsx     ← file upload area
     DataTable.jsx       ← reusable table
@@ -66,6 +80,8 @@ api/
 sample-data/
   rules.csv             ← sample discount rules
   cart.csv              ← sample cart items
+  cart.pdf              ← the same cart as a PDF
+  cart-malformed.pdf    ← PDF with bad rows, to show error handling
 ```
 
 ## CSV formats
