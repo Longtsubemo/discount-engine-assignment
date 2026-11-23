@@ -53,11 +53,14 @@ sample-data/
 | Column     | Type              | Example          |
 |------------|-------------------|------------------|
 | rule_id    | string            | RULE-01          |
-| scope      | brand \| platform | platform         |
+| scope      | brand \| platform \| cart | platform  |
 | applies_to | string            | Amazon India     |
 | type       | percentage \| flat| percentage       |
 | value      | number            | 15               |
 | stackable  | true \| false     | false            |
+| min_cart_value | number (cart rules only) | 4000     |
+
+Cart rules use `scope = cart`, leave `applies_to` blank, and require `min_cart_value`.
 
 **cart.csv**
 
@@ -74,6 +77,10 @@ sample-data/
 - When multiple non-stackable rules match an item, the one giving the **largest saving in rupees** is applied.
 - Rules marked `stackable: true` apply **on top of** the winning non-stackable rule.
 - If no rules match, the base price is returned with a "No offers available" note.
+- **Cart offers** are checked after item discounts: if the sum of final item prices is ≥ `min_cart_value`, the discount applies to that subtotal and shows as its own line. If several cart rules qualify, the biggest saving wins (cart rules don't stack). Below the threshold, no offer row appears; the customer sees how much more to add instead.
+- A flat discount is capped at the item price, so a price never goes negative.
+
+Run the engine tests with `npm test`.
 
 ## Expected results for the sample data
 
@@ -85,3 +92,6 @@ sample-data/
 | ITEM-04 | Rs.2,499  | Rs.2,499    | No offers available                    |
 | ITEM-05 | Rs.449    | Rs.382      | Platform offer: 15% off                |
 | ITEM-06 | Rs.899    | Rs.809      | Platform offer: 10% off                |
+| Cart total before offer | | Rs.5,932 |                              |
+| Cart offer (RULE-04) | | −Rs.593 | 10% off, cart ≥ Rs.4,000          |
+| **Final cart total** | | **Rs.5,339** |                          |

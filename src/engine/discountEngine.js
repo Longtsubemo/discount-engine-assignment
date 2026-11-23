@@ -8,12 +8,16 @@
  *
  * DiscountRule {
  *   ruleId:    string       — e.g. "RULE-01"
- *   scope:     "brand" | "platform"
- *   appliesTo: string       — e.g. "Natura Casa", "Amazon India"
+ *   scope:     "brand" | "platform" | "cart"
+ *   appliesTo: string       — e.g. "Natura Casa", "Amazon India", "Entire cart"
  *   type:      "percentage" | "flat"
  *   value:     number       — percentage as integer (15 = 15%), flat in rupees
  *   stackable: boolean
+ *   minCartValue: number | null — cart rules only: subtotal must be >= this
  * }
+ *
+ * Cart rules never match items (ruleMatchesItem returns false); they are
+ * applied once to the cart subtotal by applyCartOffer.
  *
  * CartItem {
  *   itemId:    string       — e.g. "ITEM-01"
@@ -60,7 +64,7 @@ export function calculateDiscountAmount(price, rule) {
     return Math.round(price * rule.value / 100)
   }
   if (rule.type === 'flat') {
-    return rule.value
+    return Math.min(rule.value, price) // never push a price below zero
   }
   return 0
 }
@@ -171,4 +175,47 @@ export function processCart(cartItems, rules) {
  */
 export function cartTotal(results) {
   return results.reduce((sum, r) => sum + r.finalPrice, 0)
+}
+
+/**
+ * Applies cart-level rules to the sum of final item prices.
+ * Runs after processCart, so item discounts are already in the subtotal.
+ *
+ * Returns CartSummary {
+ *   subtotal:   number            — sum of final item prices
+ *   cartOffer:  { ruleId, saving, label } | null  — the applied cart rule
+ *   finalTotal: number
+ *   nextOffer:  { ruleId, shortBy } | null — closest unmet threshold, for an "add Rs.X more" nudge
+ * }
+ */
+export function applyCartOffer(results, rules) {
+  const subtotal = cartTotal(results)
+  const cartRules = rules.filter((r) => r.scope === 'cart')
+
+  // shortcut: picks the single best cart rule and ignores `stackable` on cart rules; stack them if real campaigns need it
+  const best = cartRules
+    .filter((r) => subtotal >= r.minCartValue)
+    .map((rule) => ({ rule, saving: calculateDiscountAmount(subtotal, rule) }))
+    .sort((a, b) => b.saving - a.saving)[0]
+
+  const unmet = cartRules
+    .filter((r) => subtotal < r.minCartValue)
+    .sort((a, b) => a.minCartValue - b.minCartValue)[0]
+
+  const cartOffer = best
+    ? {
+        ruleId: best.rule.ruleId,
+        saving: best.saving,
+        label: best.rule.type === 'percentage'
+          ? `Cart offer: ${best.rule.value}% off`
+          : `Cart offer: Rs.${best.rule.value} off`,
+      }
+    : null
+
+  return {
+    subtotal,
+    cartOffer,
+    finalTotal: subtotal - (cartOffer?.saving ?? 0),
+    nextOffer: unmet ? { ruleId: unmet.ruleId, shortBy: unmet.minCartValue - subtotal } : null,
+  }
 }

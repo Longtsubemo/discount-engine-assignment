@@ -31,3 +31,6 @@ pnpm-debug.log*
 # OS files
 .DS_Store
 Thumbs.db
+
+# Assignment brief (confidential)
+Opptra_FDE Intern Assignment*.pdf

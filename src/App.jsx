@@ -10,14 +10,18 @@ import CsvUploader from './components/CsvUploader.jsx'
 import DataTable from './components/DataTable.jsx'
 import ErrorBanner from './components/ErrorBanner.jsx'
 import { parseRulesCSV, parseCartCSV } from './engine/csvParser.js'
-import { processCart, cartTotal } from './engine/discountEngine.js'
+import { processCart, applyCartOffer } from './engine/discountEngine.js'
 
 // ── Column definitions ───────────────────────────────────────────
 
 const RULES_COLUMNS = [
   { key: 'ruleId',    label: 'Rule ID' },
   { key: 'scope',     label: 'Scope',      render: (v) => v.charAt(0).toUpperCase() + v.slice(1) },
-  { key: 'appliesTo', label: 'Applies To' },
+  {
+    key: 'appliesTo',
+    label: 'Applies To',
+    render: (v, row) => row.scope === 'cart' ? `${v} (≥ Rs.${row.minCartValue.toLocaleString('en-IN')})` : v,
+  },
   { key: 'type',      label: 'Type',       render: (v) => v.charAt(0).toUpperCase() + v.slice(1) },
   {
     key: 'value',
@@ -96,6 +100,10 @@ const S = {
   },
   totalLabel: { fontWeight: 700, fontSize: 14, color: '#131A48' },
   totalValue: { fontWeight: 700, fontSize: 16, color: '#131A48' },
+  cartOfferRow: {
+    display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '0.5rem',
+    fontSize: 13, color: '#1e5c2c',
+  },
   tag: (color, bg) => ({
     display: 'inline-block', fontSize: 10, fontWeight: 700, padding: '1px 6px',
     borderRadius: 20, background: bg, color, textTransform: 'uppercase', letterSpacing: '0.04em',
@@ -139,6 +147,8 @@ export default function App() {
   }
 
   const canCalculate = rules.length > 0 && cartItems.length > 0
+  const summary = results && applyCartOffer(results, rules)
+  const rs = (n) => `Rs.${n.toLocaleString('en-IN')}`
 
   // ── Render ──
 
@@ -219,9 +229,26 @@ export default function App() {
             <div style={S.sectionTitle}>Cart Summary</div>
             <DataTable columns={RESULTS_COLUMNS} rows={results} />
             <div style={S.totalRow}>
-              <span style={S.totalLabel}>Cart Total</span>
-              <span style={S.totalValue}>Rs.{cartTotal(results).toLocaleString('en-IN')}</span>
+              <span style={S.totalLabel}>{summary.cartOffer ? 'Cart Total before offer' : 'Cart Total'}</span>
+              <span style={S.totalValue}>{rs(summary.subtotal)}</span>
             </div>
+            {summary.cartOffer && (
+              <>
+                <div style={S.cartOfferRow}>
+                  <span>{summary.cartOffer.label} — {rs(summary.cartOffer.saving)} saved</span>
+                  <span style={{ fontWeight: 700 }}>−{rs(summary.cartOffer.saving)}</span>
+                </div>
+                <div style={S.totalRow}>
+                  <span style={S.totalLabel}>Final Cart Total</span>
+                  <span style={{ ...S.totalValue, fontSize: 18 }}>{rs(summary.finalTotal)}</span>
+                </div>
+              </>
+            )}
+            {!summary.cartOffer && summary.nextOffer && (
+              <div style={{ textAlign: 'right', fontSize: 12, color: '#888', marginTop: 6 }}>
+                Add {rs(summary.nextOffer.shortBy)} more to unlock a cart offer
+              </div>
+            )}
           </div>
         )}
 
