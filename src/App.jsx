@@ -9,6 +9,7 @@ import { useState } from 'react'
 import CsvUploader from './components/CsvUploader.jsx'
 import DataTable from './components/DataTable.jsx'
 import ErrorBanner from './components/ErrorBanner.jsx'
+import NlRuleInput from './components/NlRuleInput.jsx'
 import { parseRulesCSV, parseCartCSV } from './engine/csvParser.js'
 import { processCart, applyCartOffer } from './engine/discountEngine.js'
 
@@ -146,6 +147,12 @@ export default function App() {
     setResults(res)
   }
 
+  function handleAddRule(rule) {
+    const next = [...rules, rule]
+    setRules(next)
+    if (cartItems.length > 0) setResults(processCart(cartItems, next)) // re-run on the current cart
+  }
+
   const canCalculate = rules.length > 0 && cartItems.length > 0
   const summary = results && applyCartOffer(results, rules)
   const rs = (n) => `Rs.${n.toLocaleString('en-IN')}`
@@ -205,6 +212,12 @@ export default function App() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Natural-language rule input */}
+        <div style={S.section}>
+          <div style={S.sectionTitle}>Add an Offer</div>
+          <NlRuleInput rules={rules} cartItems={cartItems} onAdd={handleAddRule} />
         </div>
 
         {/* Calculate button */}

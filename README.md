@@ -7,10 +7,11 @@ Fork this repo, complete the tasks in the assignment brief, and submit your GitH
 
 ```bash
 npm install
+cp .env.example .env   # then paste your Anthropic API key into .env
 npm run dev
 ```
 
-Open http://localhost:5173
+Open http://localhost:5173. The API key is only needed for the plain-English rule input; everything else works without it.
 
 ## Deploying
 
@@ -27,6 +28,21 @@ The live deployment URL must be in your README before submission.
 2. Upload `sample-data/cart.csv` as the cart input
 3. Click **Calculate Discounts**
 
+## Adding an offer in plain English
+
+Type a rule like *"Rs.100 flat discount on all Flipkart items"* in **Add an Offer** and press **Parse**.
+Claude turns it into a rule, the app shows the parsed fields, and you **Confirm & add** or **Discard**.
+On confirm the rule joins the active rules and the cart is recalculated.
+
+How it's put together:
+
+- `api/parse-rule.js` calls Claude (`claude-opus-5-5`, structured JSON output) on the server, so the API key never ships to the browser. It runs as a Vercel function in production; `vite.config.js` mounts the same handler during `npm run dev`. Set `ANTHROPIC_API_KEY` in the Vercel project's environment variables.
+- The prompt includes the brand and platform names from the current cart, so "Amazon" maps to "Amazon India".
+- The LLM output is treated as untrusted. `src/inputs/nlRule.js` checks scope, type, value (> 0, percentages ≤ 100), the target name and the cart threshold before anything reaches the engine. Anything it can't use comes back as a plain message telling the user what to add.
+- Vague input such as *"Give a discount for big orders"* returns `unresolvable` with the missing pieces, never a guessed number.
+- A rule naming a brand or platform not in the cart is allowed but flagged, since it won't change any prices yet.
+- The engine is unchanged: the new input just produces the same `DiscountRule` shape the CSV parser does.
+
 ## Project structure
 
 ```
@@ -34,12 +50,18 @@ src/
   engine/
     discountEngine.js   ← pure discount logic (no UI)
     csvParser.js        ← CSV → typed objects
+  inputs/
+    nlRule.js           ← plain English → validated DiscountRule
   components/
     CsvUploader.jsx     ← file upload area
     DataTable.jsx       ← reusable table
     ErrorBanner.jsx     ← parse error display
+    NlRuleInput.jsx     ← plain-English rule box + confirm step
   App.jsx               ← main UI + state
   main.jsx              ← entry point
+
+api/
+  parse-rule.js         ← serverless LLM call (keeps the API key server-side)
 
 sample-data/
   rules.csv             ← sample discount rules
