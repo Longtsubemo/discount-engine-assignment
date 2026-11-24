@@ -2,10 +2,11 @@
 
 **Live demo:** https://discount-engine-assignment-nine-navy.vercel.app
 
-Sample files to try it with are in [`sample-data/`](sample-data/) (`rules.csv`, `cart.csv`, `cart.pdf`, `cart-malformed.pdf`).
+**Loom walkthrough:** https://www.loom.com/share/fb5fe5f51bb74bf4aaa8b188f3dbe523
 
-This is the base implementation for the Opptra FDE Intern assignment.
-Fork this repo, complete the tasks in the assignment brief, and submit your GitHub link + Loom.
+Sample files to try it with are in [`sample-data/`](sample-data/) (`rules.csv`, `cart.csv`, `cart.pdf`, `cart-malformed.pdf`). `rules.csv` is the version printed in the brief, which adds RULE-04 (the cart offer) and the `min_cart_value` column to the base repo's copy.
+
+My submission for the Opptra FDE Intern assignment: the base engine plus all three tasks (cart-level offer, plain-English rule input, PDF cart upload).
 
 ## Running locally
 
