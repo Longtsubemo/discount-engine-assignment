@@ -70,7 +70,7 @@ export function validateParsedRule(raw, ruleId, known = { brands: [], platforms:
       appliesTo: scope === 'cart' ? 'Entire cart' : appliesTo,
       type,
       value,
-      stackable: raw.stackable === true,
+      stackable: scope !== 'cart' && raw.stackable === true, // the engine never stacks cart rules
       minCartValue: scope === 'cart' ? minCartValue : null,
     },
     warnings,

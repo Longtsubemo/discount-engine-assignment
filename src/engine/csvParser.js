@@ -76,6 +76,14 @@ export function parseRulesCSV(csvText) {
       errors.push(`Row ${rowNum}: value must be a positive number, got "${row.value}"`)
       return
     }
+    if (type === 'percentage' && value > 100) {
+      errors.push(`Row ${rowNum}: a percentage can't be more than 100, got "${row.value}"`)
+      return
+    }
+    if (data.some((r) => r.ruleId === row.rule_id.trim())) {
+      errors.push(`Row ${rowNum}: rule_id "${row.rule_id.trim()}" is used twice — skipped`)
+      return
+    }
 
     const stackableStr = row.stackable.trim().toLowerCase()
     const stackable = stackableStr === 'true' || stackableStr === '1' || stackableStr === 'yes'
@@ -130,6 +138,10 @@ export function parseCartCSV(csvText) {
     const basePrice = parseFloat(row.base_price)
     if (isNaN(basePrice) || basePrice <= 0) {
       errors.push(`Row ${rowNum}: base_price must be a positive number, got "${row.base_price}"`)
+      return
+    }
+    if (data.some((d) => d.itemId === row.item_id.trim())) {
+      errors.push(`Row ${rowNum}: item_id "${row.item_id.trim()}" is used twice — skipped`)
       return
     }
 

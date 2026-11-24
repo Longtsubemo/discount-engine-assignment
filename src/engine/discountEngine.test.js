@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { parseRulesCSV, parseCartCSV } from './csvParser.js'
-import { processCart, applyCartOffer, calculateDiscountAmount } from './discountEngine.js'
+import { processCart, applyCartOffer, calculateDiscountAmount, applyDiscounts } from './discountEngine.js'
 
 const load = (f) => readFileSync(new URL(`../../sample-data/${f}`, import.meta.url), 'utf8')
 const rules = parseRulesCSV(load('rules.csv'))
@@ -38,4 +38,23 @@ test('cart rule without min_cart_value is rejected', () => {
   const { data, errors } = parseRulesCSV('rule_id,scope,applies_to,type,value,stackable,min_cart_value\nR,cart,,percentage,10,false,\n')
   assert.equal(data.length, 0)
   assert.match(errors[0], /min_cart_value/)
+})
+
+test('a percentage over 100 never makes a price negative', () => {
+  const r = applyDiscounts({ itemId: 'I', product: 'P', brand: 'X', platform: 'N', basePrice: 1000 },
+    [{ ruleId: 'R', scope: 'brand', appliesTo: 'X', type: 'percentage', value: 150, stackable: false }])
+  assert.equal(r.finalPrice, 0)
+})
+
+test('rules CSV rejects percentages over 100 and repeated rule ids', () => {
+  const { data, errors } = parseRulesCSV('rule_id,scope,applies_to,type,value,stackable,min_cart_value\nR1,brand,X,percentage,10,false,\nR1,brand,X,flat,5,false,\nR2,brand,X,percentage,150,false,')
+  assert.deepEqual(data.map((r) => r.ruleId), ['R1'])
+  assert.match(errors[0], /used twice/)
+  assert.match(errors[1], /more than 100/)
+})
+
+test('cart CSV rejects repeated item ids', () => {
+  const { data, errors } = parseCartCSV('item_id,product,brand,platform,base_price\nI1,A,X,N,100\nI1,B,X,N,200')
+  assert.equal(data.length, 1)
+  assert.match(errors[0], /used twice/)
 })

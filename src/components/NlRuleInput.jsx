@@ -26,8 +26,15 @@ export default function NlRuleInput({ rules, cartItems, onAdd }) {
     try {
       const raw = await requestRuleParse(text, known)
       const result = validateParsedRule(raw, nextRuleId(rules), known)
-      if (result.error) setError(result.error)
-      else setParsed(result)
+      if (result.error) return setError(result.error)
+      const { rule, warnings } = result
+      const same = rules.find((x) => x.scope === rule.scope && x.appliesTo.toLowerCase() === rule.appliesTo.toLowerCase() &&
+        x.type === rule.type && x.value === rule.value && (x.minCartValue ?? null) === rule.minCartValue)
+      if (same) warnings.push(`This is the same offer as ${same.ruleId}. Adding it again ${rule.stackable ? 'applies the discount twice' : 'changes nothing'}.`)
+      const freed = rule.type === 'flat' && rule.scope !== 'cart' &&
+        cartItems.filter((i) => (rule.scope === 'brand' ? i.brand : i.platform).toLowerCase() === rule.appliesTo.toLowerCase() && i.basePrice <= rule.value)
+      if (freed?.length) warnings.push(`Rs.${rule.value.toLocaleString('en-IN')} off is the full price of ${freed.length} matching item${freed.length > 1 ? 's; they' : '; it'} would become free.`)
+      setParsed({ rule, warnings })
     } catch (e) {
       setError(e.message)
     } finally {

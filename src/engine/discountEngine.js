@@ -61,7 +61,7 @@ export function ruleMatchesItem(item, rule) {
  */
 export function calculateDiscountAmount(price, rule) {
   if (rule.type === 'percentage') {
-    return Math.round(price * rule.value / 100)
+    return Math.min(Math.round(price * rule.value / 100), price) // >100% can't make a price negative
   }
   if (rule.type === 'flat') {
     return Math.min(rule.value, price) // never push a price below zero

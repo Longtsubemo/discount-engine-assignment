@@ -35,3 +35,8 @@ test('nextRuleId continues the sequence', () => {
   assert.equal(nextRuleId([{ ruleId: 'RULE-01' }, { ruleId: 'RULE-04' }]), 'RULE-05')
   assert.equal(nextRuleId([]), 'RULE-01')
 })
+
+test('cart rules are never stackable, whatever the parser says', () => {
+  const { rule } = validateParsedRule(ok({ scope: 'cart', type: 'flat', value: 300, stackable: true, min_cart_value: 4000 }), 'R')
+  assert.equal(rule.stackable, false)
+})

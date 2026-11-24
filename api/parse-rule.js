@@ -30,7 +30,7 @@ Scopes:
 
 Rules:
 - stackable is true only if the text says the offer combines/stacks with other offers; otherwise false.
-- If the text names a brand or platform that matches one of the known names below (ignoring case or small variations like "Amazon" for "Amazon India"), use the known spelling exactly.
+- If the text names a brand or platform that matches one of the known names below (ignoring case or small variations like "Amazon" for "Amazon India"), use the known spelling exactly. A name that is not in the known list is still valid: use it as written.
 - "more than Rs.X" / "above Rs.X" / "over Rs.X" for a cart means min_cart_value = X.
 - Never invent a number. If the discount amount, the target (brand/platform), or a cart threshold is missing or ambiguous, return status "unresolvable" with a short reason telling the user what to add. Fill the other fields with any valid placeholder.`
 
