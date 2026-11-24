@@ -2,7 +2,7 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // Serves the Vercel function api/parse-rule.js during `npm run dev`,
-// so local dev needs only ANTHROPIC_API_KEY in .env (no `vercel dev`).
+// so local dev needs only OPENAI_API_KEY in .env (no `vercel dev`).
 function devApi() {
   return {
     name: 'dev-api',
@@ -24,6 +24,6 @@ function devApi() {
 }
 
 export default defineConfig(({ mode }) => {
-  Object.assign(process.env, loadEnv(mode, process.cwd(), 'ANTHROPIC_'))
+  Object.assign(process.env, loadEnv(mode, process.cwd(), 'OPENAI_'))
   return { plugins: [react(), devApi()] }
 })

@@ -2,11 +2,9 @@
  * POST /api/parse-rule  { text, brands?, platforms? } → raw parsed-rule JSON
  *
  * Vercel serverless function; vite.config.js mounts the same handler in dev.
- * Keeps ANTHROPIC_API_KEY on the server. The browser validates the result
+ * Keeps OPENAI_API_KEY on the server. The browser validates the result
  * (src/inputs/nlRule.js) before it can become a rule.
  */
-import Anthropic from '@anthropic-ai/sdk'
-
 const SCHEMA = {
   type: 'object',
   properties: {
@@ -40,41 +38,45 @@ export async function parseRuleText({ text, brands = [], platforms = [] }) {
   if (typeof text !== 'string' || !text.trim()) throw new UserError('Describe the rule first.')
   if (text.length > 500) throw new UserError('Keep the description under 500 characters.')
 
-  const client = new Anthropic()
-  const response = await client.beta.messages.create({
-    model: 'claude-opus-5-5',
-    max_tokens: 4000,
-    betas: ['server-side-fallback-2026-07-01'],
-    fallbacks: 'default',
-    output_config: { effort: 'low', format: { type: 'json_schema', schema: SCHEMA } },
-    system: SYSTEM,
-    messages: [{
-      role: 'user',
-      content: `Known brands: ${brands.join(', ') || '(none)'}\nKnown platforms: ${platforms.join(', ') || '(none)'}\n\nDescription: ${text}`,
-    }],
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+    body: JSON.stringify({
+      model: process.env.OPENAI_MODEL || 'gpt-4.1-mini',
+      response_format: { type: 'json_schema', json_schema: { name: 'rule', strict: true, schema: SCHEMA } },
+      messages: [
+        { role: 'system', content: SYSTEM },
+        { role: 'user', content: `Known brands: ${brands.join(', ') || '(none)'}\nKnown platforms: ${platforms.join(', ') || '(none)'}\n\nDescription: ${text}` },
+      ],
+    }),
   })
+  if (res.status === 401) throw new ConfigError('The server has no valid OPENAI_API_KEY configured.')
+  if (res.status === 429) throw new RateError()
+  if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`)
 
-  if (response.stop_reason === 'refusal') throw new UserError('The parser declined this description. Please rephrase it.')
-  if (response.stop_reason === 'max_tokens') throw new UserError('The parser ran out of room. Try a shorter description.')
-  const textBlock = response.content.find((b) => b.type === 'text')
+  const choice = (await res.json()).choices?.[0]
+  if (choice?.message?.refusal) throw new UserError('The parser declined this description. Please rephrase it.')
+  if (choice?.finish_reason === 'length') throw new UserError('The parser ran out of room. Try a shorter description.')
   try {
-    return JSON.parse(textBlock?.text ?? '')
+    return JSON.parse(choice?.message?.content ?? '')
   } catch {
     throw new UserError('The parser returned something unreadable. Please try again.')
   }
 }
 
 export class UserError extends Error {}
+class ConfigError extends Error {}
+class RateError extends Error {}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Use POST.' })
-  if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'The rule parser is not configured (no ANTHROPIC_API_KEY on the server).' })
+  if (!process.env.OPENAI_API_KEY) return res.status(500).json({ error: 'The rule parser is not configured (no OPENAI_API_KEY on the server).' })
   try {
     res.status(200).json(await parseRuleText(req.body ?? {}))
   } catch (err) {
     if (err instanceof UserError) return res.status(400).json({ error: err.message })
-    if (err instanceof Anthropic.AuthenticationError) return res.status(500).json({ error: 'The server has no valid ANTHROPIC_API_KEY configured.' })
-    if (err instanceof Anthropic.RateLimitError) return res.status(429).json({ error: 'Too many requests right now. Wait a moment and try again.' })
+    if (err instanceof ConfigError) return res.status(500).json({ error: err.message })
+    if (err instanceof RateError) return res.status(429).json({ error: 'Too many requests right now. Wait a moment and try again.' })
     console.error(err)
     res.status(502).json({ error: 'The rule parser is unavailable. Please try again.' })
   }

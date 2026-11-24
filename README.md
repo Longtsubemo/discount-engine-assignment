@@ -35,12 +35,12 @@ The live deployment URL must be in your README before submission.
 ## Adding an offer in plain English
 
 Type a rule like *"Rs.100 flat discount on all Flipkart items"* in **Add an Offer** and press **Parse**.
-Claude turns it into a rule, the app shows the parsed fields, and you **Confirm & add** or **Discard**.
+An OpenAI model turns it into a rule, the app shows the parsed fields, and you **Confirm & add** or **Discard**.
 On confirm the rule joins the active rules and the cart is recalculated.
 
 How it's put together:
 
-- `api/parse-rule.js` calls Claude (`claude-opus-5-5`, structured JSON output) on the server, so the API key never ships to the browser. It runs as a Vercel function in production; `vite.config.js` mounts the same handler during `npm run dev`. Set `ANTHROPIC_API_KEY` in the Vercel project's environment variables.
+- `api/parse-rule.js` calls OpenAI (`gpt-4.1-mini` by default, override with `OPENAI_MODEL`; strict JSON-schema output) on the server, so the API key never ships to the browser. It runs as a Vercel function in production; `vite.config.js` mounts the same handler during `npm run dev`. Set `OPENAI_API_KEY` in the Vercel project's environment variables.
 - The prompt includes the brand and platform names from the current cart, so "Amazon" maps to "Amazon India".
 - The LLM output is treated as untrusted. `src/inputs/nlRule.js` checks scope, type, value (> 0, percentages ≤ 100), the target name and the cart threshold before anything reaches the engine. Anything it can't use comes back as a plain message telling the user what to add.
 - Vague input such as *"Give a discount for big orders"* returns `unresolvable` with the missing pieces, never a guessed number.
