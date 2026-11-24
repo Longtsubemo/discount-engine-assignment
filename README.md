@@ -1,4 +1,8 @@
-# Opptra Discount Engine — Base Implementation
+# Opptra Discount Engine
+
+**Live demo:** https://discount-engine-assignment-nine-navy.vercel.app
+
+Sample files to try it with are in [`sample-data/`](sample-data/) (`rules.csv`, `cart.csv`, `cart.pdf`, `cart-malformed.pdf`).
 
 This is the base implementation for the Opptra FDE Intern assignment.
 Fork this repo, complete the tasks in the assignment brief, and submit your GitHub link + Loom.
